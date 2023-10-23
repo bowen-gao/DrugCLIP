@@ -1,7 +1,7 @@
 # DrugCLIP: Contrastive Protein-Molecule Representation Learning for Virtual Screening
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/xxxx/blob/main/LICENSE)
-[![ArXiv](http://img.shields.io/badge/cs.LG-arXiv%3A2305.01140-B31B1B.svg)](https://arxiv.org/pdf/2310.06367.pdf)
+[![ArXiv](http://img.shields.io/badge/cs.LG-arXiv%3A2310.06367-B31B1B.svg)](https://arxiv.org/pdf/2310.06367.pdf)
 
 <!-- [[Code](xxxx - Overview)] -->
 
