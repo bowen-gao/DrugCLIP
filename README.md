@@ -5,6 +5,6 @@
 
 <!-- [[Code](xxxx - Overview)] -->
 
-![cover](figures/framework.png)
+![cover](framework.png)
 
 Official code for the paper "DrugCLIP: Contrastive Protein-Molecule Representation Learning for Virtual Screening", accepted at *Neural Information Processing Systems, 2023*, will be released ASAP. If you have any inquiries, feel free to open an issue.
