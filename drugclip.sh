@@ -1,18 +1,17 @@
 
 
-data_path="/data/protein/local_data/drug_clip_pdb_general/train_no_test_af/"
+data_path="data"
 
 
-save_dir="/drug/save_dir/affinity/$(date +"%Y-%m-%d_%H-%M-%S")/"
+save_dir="savedir"
 
-tmp_save_dir="/drug/save_dir/affinity/tmp_save/$(date +"%Y-%m-%d_%H-%M-%S")/d"
-tsb_dir="./tsbs/affinity_$(date +"%Y-%m-%d_%H-%M-%S")_tsb"
+tmp_save_dir="tmp_save_dir"
+tsb_dir="tsb_dir"
 
 n_gpu=1
 MASTER_PORT=10055
-finetune_mol_model="/data/protein/molecule/pretrain/mol_pre_no_h_220816.pt"
-finetune_pocket_model="/data/protein/molecule/pretrain/pocket_pre_220816.pt"
-weight_path="/data/protein/save_dir/affinity/2023-05-06_22-08-56/checkpoint_best.pt"
+finetune_mol_model="mol_pre_no_h_220816.pt" # unimol pretrained mol model
+finetune_pocket_model="pocket_pre_220816.pt" # unimol pretrained pocket model
 
 
 batch_size=48
@@ -44,4 +43,3 @@ CUDA_VISIBLE_DEVICES="1" python -m torch.distributed.launch --nproc_per_node=$n_
        --maximize-best-checkpoint-metric \
        --finetune-pocket-model $finetune_pocket_model \
        --finetune-mol-model $finetune_mol_model \
-       --finetune-from-model $weight_path \
