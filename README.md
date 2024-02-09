@@ -7,7 +7,31 @@
 
 ![cover](framework.png)
 
-Official code for the paper "DrugCLIP: Contrastive Protein-Molecule Representation Learning for Virtual Screening", accepted at *Neural Information Processing Systems, 2023*, will be released ASAP. If you have any inquiries, feel free to open an issue.
+Official code for the paper "DrugCLIP: Contrastive Protein-Molecule Representation Learning for Virtual Screening", accepted at *Neural Information Processing Systems, 2023*. **Currently the code is a raw version, will be updated ASAP**. If you have any inquiries, feel free to contact billgao0111@gmail.com
+
+# Requirements
+
+same as [Uni-Mol](https://github.com/dptech-corp/Uni-Mol/tree/main/unimol)
+
+rdkit version should be 2022.9.5
+
+## Data
+
+https://drive.google.com/drive/folders/1zW1MGpgunynFxTKXC2Q4RgWxZmg6CInV?usp=sharing
+
+It currently includes the train data, the trained checkpoint and the test data for DUD-E
+
+## HomoAug
+
+Please refer to HomoAug directory for details
+
+## Train
+
+drugclip.sh
+
+## Test
+
+test.sh
 
 ## Citation
 
