@@ -15,11 +15,15 @@ same as [Uni-Mol](https://github.com/dptech-corp/Uni-Mol/tree/main/unimol)
 
 **rdkit version should be 2022.9.5**
 
-## Data
+## Data and checkpoints
 
 https://drive.google.com/drive/folders/1zW1MGpgunynFxTKXC2Q4RgWxZmg6CInV?usp=sharing
 
 It currently includes the train data, the trained checkpoint and the test data for DUD-E
+
+## Data preprocessing
+
+see py_scripts
 
 ## HomoAug
 
