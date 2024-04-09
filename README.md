@@ -27,11 +27,19 @@ Please refer to HomoAug directory for details
 
 ## Train
 
-drugclip.sh
+bash drugclip.sh
 
 ## Test
 
-test.sh
+bash test.sh
+
+
+## Retrieval 
+
+bash retrieval.sh
+
+In the google drive folder, you can find example file for pocket.lmdb and mols.lmdb under retrieval dir.
+
 
 ## Citation
 
