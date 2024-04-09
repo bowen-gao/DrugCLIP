@@ -13,7 +13,7 @@ Official code for the paper "DrugCLIP: Contrastive Protein-Molecule Representati
 
 same as [Uni-Mol](https://github.com/dptech-corp/Uni-Mol/tree/main/unimol)
 
-rdkit version should be 2022.9.5
+**rdkit version should be 2022.9.5**
 
 ## Data
 
