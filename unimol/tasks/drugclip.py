@@ -9,6 +9,7 @@ from sklearn.metrics import roc_auc_score
 from xmlrpc.client import Boolean
 import numpy as np
 import torch
+import pickle
 from tqdm import tqdm
 from unicore import checkpoint_utils
 import unicore
@@ -400,6 +401,68 @@ class DrugCLIP(UnicoreTask):
         return nest_dataset
     
 
+    def load_retrieval_mols_dataset(self, data_path,atoms,coords, **kwargs):
+ 
+        dataset = LMDBDataset(data_path)
+        dataset = AffinityMolDataset(
+            dataset,
+            self.args.seed,
+            atoms,
+            coords,
+            False,
+        )
+        
+        smi_dataset = KeyDataset(dataset, "smi")
+
+        def PrependAndAppend(dataset, pre_token, app_token):
+            dataset = PrependTokenDataset(dataset, pre_token)
+            return AppendTokenDataset(dataset, app_token)
+
+
+
+        dataset = RemoveHydrogenDataset(dataset, "atoms", "coordinates", True, True)
+
+
+        apo_dataset = NormalizeDataset(dataset, "coordinates")
+
+        src_dataset = KeyDataset(apo_dataset, "atoms")
+        len_dataset = LengthDataset(src_dataset)
+        src_dataset = TokenizeDataset(
+            src_dataset, self.dictionary, max_seq_len=self.args.max_seq_len
+        )
+        coord_dataset = KeyDataset(apo_dataset, "coordinates")
+        src_dataset = PrependAndAppend(
+            src_dataset, self.dictionary.bos(), self.dictionary.eos()
+        )
+        edge_type = EdgeTypeDataset(src_dataset, len(self.dictionary))
+        coord_dataset = FromNumpyDataset(coord_dataset)
+        distance_dataset = DistanceDataset(coord_dataset)
+        coord_dataset = PrependAndAppend(coord_dataset, 0.0, 0.0)
+        distance_dataset = PrependAndAppend2DDataset(distance_dataset, 0.0)
+
+
+        nest_dataset = NestedDictionaryDataset(
+            {
+                "net_input": {
+                    "mol_src_tokens": RightPadDataset(
+                        src_dataset,
+                        pad_idx=self.dictionary.pad(),
+                    ),
+                    "mol_src_distance": RightPadDataset2D(
+                        distance_dataset,
+                        pad_idx=0,
+                    ),
+                    "mol_src_edge_type": RightPadDataset2D(
+                        edge_type,
+                        pad_idx=0,
+                    ),
+                },
+                "smi_name": RawArrayDataset(smi_dataset),
+                "mol_len": RawArrayDataset(len_dataset),
+            },
+        )
+        return nest_dataset
+
     def load_pockets_dataset(self, data_path, **kwargs):
 
         dataset = LMDBDataset(data_path)
@@ -737,7 +800,7 @@ class DrugCLIP(UnicoreTask):
         mol_reps = np.concatenate(mol_reps, axis=0)
         labels = np.array(labels, dtype=np.int32)
         # generate pocket data
-        data_path = "/data/protein/DUD-E/raw/all/" + target + "/pocket.lmdb"
+        data_path = "/data/protein/DUD-E/raw/all/" + target + "/fpocket.lmdb"
         pocket_dataset = self.load_pockets_dataset(data_path)
         pocket_data = torch.utils.data.DataLoader(pocket_dataset, batch_size=bsz, collate_fn=pocket_dataset.collater)
         pocket_reps = []
@@ -830,24 +893,18 @@ class DrugCLIP(UnicoreTask):
     
     
     
-    def encode_mols_once(self, model, data_path,atoms,coords, **kwargs):
+    def encode_mols_once(self, model, data_path, emb_dir, atoms, coords, **kwargs):
+        
+        # cache path is embdir/data_path.pkl
 
-        #names = "PPARG"
-        import pickle
+        cache_path = os.path.join(emb_dir, data_path.split("/")[-1] + ".pkl")
 
-        #data_path = "/home/gaobowen/he_pockets/chemdiv.lmdb"
-        ckpt_data =  self.args.finetune_from_model.split("/")[-2]
-        name = data_path.split("/")[-1].split(".")[0]
-        cache_path = "/drug/clpocket/mol_libs/" + ckpt_data +"_"+ name + ".pkl"
-        cache_path =  "/drug/clpocket/mol_libs/" + name + ".pkl"
-        print(cache_path)
         if os.path.exists(cache_path):
             with open(cache_path, "rb") as f:
                 mol_reps, mol_names = pickle.load(f)
             return mol_reps, mol_names
 
-        
-        mol_dataset = self.load_mols_dataset(data_path,atoms,coords)
+        mol_dataset = self.load_retrieval_mols_dataset(data_path,atoms,coords)
         mol_reps = []
         mol_names = []
         bsz=32
@@ -870,51 +927,26 @@ class DrugCLIP(UnicoreTask):
             )
             mol_encoder_rep = mol_outputs[0][:,0,:]
             mol_emb = model.mol_project(mol_encoder_rep)
-            #mol_emb = mol_emb / mol_emb.norm(dim=-1, keepdim=True)
+            mol_emb = mol_emb / mol_emb.norm(dim=-1, keepdim=True)
             mol_emb = mol_emb.detach().cpu().numpy()
             mol_reps.append(mol_emb)
             mol_names.extend(sample["smi_name"])
-            #labels.extend(sample["target"].detach().cpu().numpy())
-            #keys.extend(sample["key"])
+
         mol_reps = np.concatenate(mol_reps, axis=0)
-        print(mol_reps.shape)
-        #labels = np.array(labels, dtype=np.int32)
-        # generate pocket data
+
+        # save the results
+        
         with open(cache_path, "wb") as f:
             pickle.dump([mol_reps, mol_names], f)
+
         return mol_reps, mol_names
     
-    def retrieve_mols(self, model, mol_path, pocket_path, **kwargs):
+    def retrieve_mols(self, model, mol_path, pocket_path, emb_dir, k, **kwargs):
  
-        #names = "PPARG"
-        import pickle
-
-        chemdiv_path = "/drug/encoding_mols/chemdiv_1640k.lmdb"
-        chemdiv_path = "/home/gaobowen/he_pockets/chemdiv.lmdb"
-        enam_paths = ["/drug/clpocket/mol_libs/enam/enam_full_1.lmdb", "/drug/clpocket/mol_libs/enam/enam_full_2.lmdb"]
-        zinc_path = "/drug/clpocket/mol_libs/zinc_readydock.lmdb"
-        all_sxj_lib_path = "/home/gaobowen/he_pockets/all_sxj_lib_0914.lmdb"
-        mol_reps_chemdiv, mol_names_chemdiv = self.encode_mols_once(model, chemdiv_path,"atoms", "coordinates")
-        mol_reps_enam_list = []
-        mol_names_enam_list = []
-        for path in enam_paths:
-            mol_reps_enam, mol_names_enam = self.encode_mols_once(model, path, "atom_types", "coords")
-            mol_reps_enam_list.append(mol_reps_enam)
-            mol_names_enam_list.append(mol_names_enam)
-        mol_reps_zinc, mol_names_zinc = self.encode_mols_once(model, zinc_path, "atom_types", "coords")
-
-        all_reps = np.concatenate([mol_reps_chemdiv, mol_reps_zinc] + mol_reps_enam_list, axis=0)
-        mol_names_enam = mol_names_enam_list[0] + mol_names_enam_list[1]
-        all_names = mol_names_chemdiv + mol_names_zinc + mol_names_enam
-        # change to float32
-        all_reps = all_reps.astype(np.float32) 
-
-        mol_reps_enam = np.concatenate(mol_reps_enam_list, axis=0)
-
-        mol_reps_sxj, mol_names_sxj = self.encode_mols_once(model, all_sxj_lib_path, "atoms", "coordinates")
-
-        data_path = "/home/gaobowen/he_pockets/7eou.lmdb"
-        pocket_dataset = self.load_pockets_dataset(data_path)
+        os.makedirs(emb_dir, exist_ok=True)        
+        mol_reps, mol_names = self.encode_mols_once(model, mol_path, emb_dir,  "atoms", "coordinates")
+        
+        pocket_dataset = self.load_pockets_dataset(pocket_path)
         pocket_data = torch.utils.data.DataLoader(pocket_dataset, batch_size=16, collate_fn=pocket_dataset.collater)
         pocket_reps = []
         pocket_names = []
@@ -936,51 +968,30 @@ class DrugCLIP(UnicoreTask):
             )
             pocket_encoder_rep = pocket_outputs[0][:,0,:]
             pocket_emb = model.pocket_project(pocket_encoder_rep)
-            #pocket_emb = pocket_emb / pocket_emb.norm(dim=-1, keepdim=True)
+            pocket_emb = pocket_emb / pocket_emb.norm(dim=-1, keepdim=True)
             pocket_emb = pocket_emb.detach().cpu().numpy()
             pocket_reps.append(pocket_emb)
             pocket_names.extend(sample["pocket_name"])
         pocket_reps = np.concatenate(pocket_reps, axis=0)
-        print(pocket_reps.shape)
+        
+        res = pocket_reps @ mol_reps.T
+        res = res.max(axis=0)
 
 
-
-        res_sxj = pocket_reps @ mol_reps_sxj.T
-        res_sxj = np.max(res_sxj, axis=0)
-
-        res_zinc =  pocket_reps @ mol_reps_zinc.T
-        res_zinc = np.max(res_zinc, axis=0)
-
-        res_enam = pocket_reps @ mol_reps_enam.T
-        res_enam = np.max(res_enam, axis=0)
-
-        res_chemdiv = pocket_reps @ mol_reps_chemdiv.T
-        res_chemdiv = np.max(res_chemdiv, axis=0)
-
-        lis = []
-        for i,score in enumerate(res_chemdiv):
-            lis.append((score, mol_names_chemdiv[i]))
-        lis.sort(key=lambda x:x[0], reverse=True)
-        count = 0
-        res_list = []
-        for i in range(10000):
-            score = lis[i][0]
-            #key = lis[i][2]
-            smi = lis[i][1]
-            # if key not in gt:
-            #     res_list.append((smi, score))
-            # else:
-            #     count+=1
-            res_list.append((smi, score))
- 
-        print(count)
-        # save res_list to txt
-        with open("NMDA-AA_chemdiv.txt", "w") as f:
-            for smi, score in res_list:
-                f.write(smi+"\t"+str(score)+"\n")
+        # get top k results
 
         
-        return 
+        top_k = np.argsort(res)[::-1][:k]
+
+        # return names and scores
+        
+        return [mol_names[i] for i in top_k], res[top_k]
+
+
+        
+
+        
+         
 
 
     
