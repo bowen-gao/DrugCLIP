@@ -800,7 +800,7 @@ class DrugCLIP(UnicoreTask):
         mol_reps = np.concatenate(mol_reps, axis=0)
         labels = np.array(labels, dtype=np.int32)
         # generate pocket data
-        data_path = "/data/protein/DUD-E/raw/all/" + target + "/fpocket.lmdb"
+        data_path = "/data/protein/DUD-E/raw/all/" + target + "/pocket.lmdb"
         pocket_dataset = self.load_pockets_dataset(data_path)
         pocket_data = torch.utils.data.DataLoader(pocket_dataset, batch_size=bsz, collate_fn=pocket_dataset.collater)
         pocket_reps = []
