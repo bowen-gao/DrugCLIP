@@ -620,7 +620,7 @@ class DrugCLIP(UnicoreTask):
         """Encode a dataset with the molecule encoder."""
 
         #names = "PPARG"
-        data_path = "/data/protein/lib-pcba/raw/lib_pcba/" + name + "/mols.lmdb"
+        data_path = "./data/lit_pcba/" + name + "/mols.lmdb"
         mol_dataset = self.load_mols_dataset(data_path, "atoms", "coordinates")
         num_data = len(mol_dataset)
         bsz=64
@@ -660,7 +660,7 @@ class DrugCLIP(UnicoreTask):
         mol_reps = np.concatenate(mol_reps, axis=0)
         labels = np.array(labels, dtype=np.int32)
         # generate pocket data
-        data_path = "/data/protein/lib-pcba/raw/lib_pcba/" + name + "/pockets.lmdb"
+        data_path = "./data/lit_pcba/" + name + "/pockets.lmdb"
         pocket_dataset = self.load_pockets_dataset(data_path)
         pocket_data = torch.utils.data.DataLoader(pocket_dataset, batch_size=bsz, collate_fn=pocket_dataset.collater)
         pocket_reps = []
@@ -703,9 +703,9 @@ class DrugCLIP(UnicoreTask):
         #save_name = "/home/gaobowen/DrugClip/test_results/pcba/" + ckpt_date + ".txt"
         save_name = ""
         
-        targets = os.listdir("/data/protein/lib-pcba/raw/lib_pcba/")
+        targets = os.listdir("./data/lit_pcba/")
 
-        print(targets)
+        #print(targets)
         auc_list = []
         ef_list = []
         bedroc_list = []
@@ -728,8 +728,8 @@ class DrugCLIP(UnicoreTask):
             bedroc_list.append(bedroc)
             for key in ef:
                 ef_list[key].append(ef[key])
-            print("re", re)
-            print("ef", ef)
+            # print("re", re)
+            # print("ef", ef)
             for key in re:
                 re_list[key].append(re[key])
         print(auc_list)
@@ -759,7 +759,7 @@ class DrugCLIP(UnicoreTask):
     
     def test_dude_target(self, target, model, **kwargs):
 
-        data_path = "/data/protein/DUD-E/raw/all/" + target + "/mols.lmdb"
+        data_path = "./data/DUD-E/raw/all/" + target + "/mols.lmdb"
         mol_dataset = self.load_mols_dataset(data_path, "atoms", "coordinates")
         num_data = len(mol_dataset)
         bsz=64
@@ -800,7 +800,7 @@ class DrugCLIP(UnicoreTask):
         mol_reps = np.concatenate(mol_reps, axis=0)
         labels = np.array(labels, dtype=np.int32)
         # generate pocket data
-        data_path = "/data/protein/DUD-E/raw/all/" + target + "/pocket.lmdb"
+        data_path = "./data/DUD-E/raw/all/" + target + "/pocket.lmdb"
         pocket_dataset = self.load_pockets_dataset(data_path)
         pocket_data = torch.utils.data.DataLoader(pocket_dataset, batch_size=bsz, collate_fn=pocket_dataset.collater)
         pocket_reps = []
@@ -845,7 +845,7 @@ class DrugCLIP(UnicoreTask):
     def test_dude(self, model, **kwargs):
 
 
-        targets = os.listdir("/data/protein/DUD-E/raw/all/")
+        targets = os.listdir("./data/DUD-E/raw/all/")
         auc_list = []
         bedroc_list = []
         ef_list = []
