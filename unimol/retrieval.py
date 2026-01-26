@@ -61,6 +61,11 @@ def main(args):
     
     names, scores = task.retrieve_mols(model, args.mol_path, args.pocket_path, args.emb_dir, 10000)
 
+    # save to ranked_compounds.txt
+    with open(os.path.join(args.emb_dir, 'ranked_compounds.txt'), 'w') as f:
+        for name, score in zip(names, scores):
+            f.write(f"{name}\t{score}\n")
+
 
 def cli_main():
     # add args
