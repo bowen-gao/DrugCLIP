@@ -1,1 +1,4 @@
 **/__pycache__/
+
+# Ignore large LMDB data files
+data/*.lmdb
