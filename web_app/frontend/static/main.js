@@ -99,10 +99,14 @@ function switchTab(tabName) {
     });
 
     // Show selected tab
-    document.getElementById(tabName).classList.add('active');
+    const tabElement = document.getElementById(tabName);
+    tabElement.classList.add('active');
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
 
     appState.currentTab = tabName;
+
+    // Scroll to top of the tab content
+    tabElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     // Update charts if switching to results tab
     if (tabName === 'results' && appState.batchResults) {
