@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  drugclip-web:
+    build: .
+    container_name: drugclip-web
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data:ro
+      - ./checkpoints:/app/checkpoints:ro
+    environment:
+      FLASK_ENV: production
+      DEVICE: cuda
+      MODEL_PATH: /app/checkpoints/checkpoint_best.pt
+      MOL_LMDB_PATH: /app/data/mols.lmdb
+      POCKET_LMDB_PATH: /app/data/pocket.lmdb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - drugclip-network
+
+networks:
+  drugclip-network:
+    driver: bridge

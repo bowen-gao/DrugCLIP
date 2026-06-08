@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DrugCLIP - 虚拟药物筛选平台</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🧬 DrugCLIP 虚拟药物筛选平台</h1>
+                <p>基于深度学习的蛋白质-分子结合亲和力预测</p>
+            </div>
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">检查服务状态...</span>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="single">单分子预测</button>
+            <button class="tab-btn" data-tab="batch">批量预测</button>
+            <button class="tab-btn" data-tab="results">结果分析</button>
+            <button class="tab-btn" data-tab="help">使用帮助</button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            
+            <!-- Tab 1: Single Prediction -->
+            <div id="single" class="tab-content active">
+                <div class="section">
+                    <h2>单分子结合亲和力预测</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="molSmiles">分子 SMILES 字符串：</label>
+                            <textarea id="molSmiles" placeholder="例：CC(C)Cc1ccc(cc1)C(C)C(=O)O" rows="3"></textarea>
+                            <small>输入分子的SMILES表示法</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pocketId">蛋白质口袋 ID：</label>
+                            <input type="text" id="pocketId" placeholder="例：1a30" value="1a30">
+                            <small>PDB中蛋白质结合位点的标识符</small>
+                        </div>
+
+                        <div class="form-actions">
+                            <button id="predictBtn" class="btn btn-primary">开始预测</button>
+                            <button id="loadExampleBtn" class="btn btn-secondary">加载示例</button>
+                        </div>
+                    </div>
+
+                    <!-- Prediction Result -->
+                    <div id="singleResultContainer" class="result-container hidden">
+                        <h3>预测结果</h3>
+                        <div class="result-card">
+                            <div class="result-row">
+                                <span class="label">SMILES:</span>
+                                <span id="resultSmiles" class="value"></span>
+                            </div>
+                            <div class="result-row">
+                                <span class="label">口袋 ID:</span>
+                                <span id="resultPocket" class="value"></span>
+                            </div>
+                            <div class="result-row highlight">
+                                <span class="label">结合分数:</span>
+                                <span id="resultScore" class="value score"></span>
+                            </div>
+                            <div class="result-row">
+                                <span class="label">结合概率:</span>
+                                <span id="resultProb" class="value percentage"></span>
+                            </div>
+                            <div class="result-row">
+                                <span class="label">置信度:</span>
+                                <span id="resultConfidence" class="value percentage"></span>
+                            </div>
+                        </div>
+
+                        <!-- Score Visualization -->
+                        <div id="singleChart" class="chart-container" style="height: 300px; margin-top: 20px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Batch Prediction -->
+            <div id="batch" class="tab-content">
+                <div class="section">
+                    <h2>批量药物筛选</h2>
+                    
+                    <!-- File Upload -->
+                    <div class="form-group">
+                        <label for="molFile">上传分子文件：</label>
+                        <div class="file-upload">
+                            <input type="file" id="molFile" accept=".smi,.txt,.smiles">
+                            <div class="upload-hint">支持 .smi, .txt, .smiles 格式<br>每行格式：SMILES [名称]</div>
+                        </div>
+                    </div>
+
+                    <!-- Molecule List Preview -->
+                    <div id="molListContainer" class="hidden">
+                        <h3>已加载分子列表</h3>
+                        <div id="molListPreview" class="list-preview"></div>
+                    </div>
+
+                    <!-- Batch Settings -->
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="batchPocketId">蛋白质口袋 ID：</label>
+                            <input type="text" id="batchPocketId" placeholder="例：1a30" value="1a30">
+                        </div>
+
+                        <div class="form-actions">
+                            <button id="batchPredictBtn" class="btn btn-primary">开始批量预测</button>
+                            <button id="loadBatchExampleBtn" class="btn btn-secondary">加载示例</button>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div id="progressContainer" class="hidden">
+                        <div class="progress-info">
+                            <span id="progressText">处理进度</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Batch Results Table -->
+                    <div id="batchResultsContainer" class="hidden">
+                        <h3>预测结果</h3>
+                        <div class="table-wrapper">
+                            <table id="resultsTable" class="results-table">
+                                <thead>
+                                    <tr>
+                                        <th>排名</th>
+                                        <th>分子名称</th>
+                                        <th>SMILES</th>
+                                        <th>结合分数</th>
+                                        <th>结合概率</th>
+                                        <th>置信度</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="table-actions">
+                            <button id="downloadCsvBtn" class="btn btn-secondary">下载 CSV</button>
+                            <button id="downloadJsonBtn" class="btn btn-secondary">下载 JSON</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Results Analysis -->
+            <div id="results" class="tab-content">
+                <div class="section">
+                    <h2>结果分析</h2>
+
+                    <!-- Statistics -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h4>总预测数</h4>
+                            <p id="statTotal" class="stat-value">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h4>最高分数</h4>
+                            <p id="statMax" class="stat-value">-</p>
+                        </div>
+                        <div class="stat-card">
+                            <h4>最低分数</h4>
+                            <p id="statMin" class="stat-value">-</p>
+                        </div>
+                        <div class="stat-card">
+                            <h4>平均分数</h4>
+                            <p id="statAvg" class="stat-value">-</p>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="chart-row">
+                        <div id="scoresChart" class="chart-container" style="height: 400px;"></div>
+                        <div id="probabilityChart" class="chart-container" style="height: 400px;"></div>
+                    </div>
+
+                    <div class="chart-row">
+                        <div id="distributionChart" class="chart-container" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Help -->
+            <div id="help" class="tab-content">
+                <div class="section">
+                    <h2>使用帮助</h2>
+
+                    <div class="help-content">
+                        <h3>📖 功能介绍</h3>
+                        <p>DrugCLIP 是一个基于深度学习的虚拟药物筛选平台，用于预测分子与蛋白质的结合亲和力。</p>
+
+                        <h3>🔬 输入说明</h3>
+                        <ul>
+                            <li><strong>分子 SMILES：</strong>SMILES（Simplified Molecular Input Line Entry System）是分子的字符串表示法。例如：CC(C)Cc1ccc(cc1)C(C)C(=O)O</li>
+                            <li><strong>蛋白质口袋 ID：</strong>PDB 数据库中蛋白质结合位点的标识符。例如：1a30（HIV蛋白酶）</li>
+                        </ul>
+
+                        <h3>📊 输出说明</h3>
+                        <ul>
+                            <li><strong>结合分数：</strong>负值表示更强的结合亲和力。范围通常为 -10 到 10。</li>
+                            <li><strong>结合概率：</strong>0-1 之间，表示分子与蛋白质结合的概率。</li>
+                            <li><strong>置信度：</strong>模型对预测结果的置信程度。</li>
+                        </ul>
+
+                        <h3>💡 使用技巧</h3>
+                        <ul>
+                            <li>对于批量预测，使用 .smi 文件格式可以一次筛选数千个分子。</li>
+                            <li>预测分数越低（更负），结合亲和力越强。</li>
+                            <li>可以下载结果为 CSV 或 JSON 格式进行后续分析。</li>
+                        </ul>
+
+                        <h3>🔗 数据来源</h3>
+                        <ul>
+                            <li>蛋白质结构：<a href="https://www.rcsb.org/" target="_blank">PDB 数据库</a></li>
+                            <li>模型：DrugCLIP（NeurIPS 2023）</li>
+                            <li>训练数据：PDBBind + HomoAug</li>
+                        </ul>
+
+                        <h3>⚠️ 注意事项</h3>
+                        <ul>
+                            <li>预测结果仅供参考，不能完全替代实验验证。</li>
+                            <li>确保输入的 SMILES 字符串格式正确。</li>
+                            <li>大规模批量预测可能需要较长时间，请耐心等待。</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>DrugCLIP © 2024 | Neural Information Processing Systems 2023</p>
+            <p>Paper: <a href="https://arxiv.org/pdf/2310.06367.pdf" target="_blank">arXiv:2310.06367</a></p>
+        </footer>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="spinner"></div>
+            <p id="loadingText">处理中，请稍候...</p>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal" class="modal hidden">
+        <div class="modal-content error">
+            <h3>错误</h3>
+            <p id="errorText"></p>
+            <button class="btn btn-primary" onclick="document.getElementById('errorModal').classList.add('hidden')">关闭</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>
